@@ -27,6 +27,11 @@ class RsvpResource extends JsonResource
             'status' => $this->status,
             'adultsCount' => $this->adults_count,
             'kidsCount' => $this->kids_count,
+            'attendees' => $this->attendees->map(fn ($attendee) => [
+                'name' => $attendee->name,
+                'type' => $attendee->type,
+                'age' => $attendee->age,
+            ]),
             'favoriteCharacter' => (string) $this->favorite_character,
             'dietaryNotes' => (string) $this->dietary_notes,
             'message' => (string) $this->message,

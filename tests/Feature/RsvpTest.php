@@ -21,8 +21,11 @@ class RsvpTest extends TestCase
             'guestName' => 'Família Silva',
             'phone' => '(11) 98888-1122',
             'status' => 'confirmed',
-            'adultsCount' => 2,
-            'kidsCount' => 1,
+            'attendees' => [
+                ['name' => 'Mariana Silva', 'type' => 'adult', 'age' => null],
+                ['name' => 'Rafael Silva', 'type' => 'adult'],
+                ['name' => 'Enzo Silva', 'type' => 'child', 'age' => 5],
+            ],
             'favoriteCharacter' => 'Mario',
             'dietaryNotes' => 'Sem restrições',
             'message' => 'Parabéns!',
@@ -50,6 +53,66 @@ class RsvpTest extends TestCase
         ]))
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['guestName', 'phone', 'status', 'adultsCount']);
+    }
+
+    public function test_it_stores_everyone_coming_and_derives_the_counts(): void
+    {
+        $this->postJson('/api/v1/rsvps', $this->payload(['adultsCount' => 9, 'kidsCount' => 9]))
+            ->assertCreated()
+            ->assertJsonPath('data.adultsCount', 2)
+            ->assertJsonPath('data.kidsCount', 1)
+            ->assertJsonPath('data.attendees.0.name', 'Mariana Silva')
+            ->assertJsonPath('data.attendees.1.age', null)
+            ->assertJsonPath('data.attendees.2', ['name' => 'Enzo Silva', 'type' => 'child', 'age' => 5]);
+
+        $this->assertDatabaseCount('rsvp_attendees', 3);
+    }
+
+    public function test_guests_who_confirm_must_name_everyone(): void
+    {
+        $this->postJson('/api/v1/rsvps', $this->payload(['attendees' => null, 'adultsCount' => 2, 'kidsCount' => 1]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('attendees');
+    }
+
+    public function test_children_need_a_name_and_an_age(): void
+    {
+        $this->postJson('/api/v1/rsvps', $this->payload(['attendees' => [
+            ['name' => 'Mariana Silva', 'type' => 'adult'],
+            ['name' => '', 'type' => 'child', 'age' => 5],
+            ['name' => 'Enzo Silva', 'type' => 'child'],
+            ['name' => 'Bia Silva', 'type' => 'child', 'age' => 30],
+        ]]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['attendees.1.name', 'attendees.2.age', 'attendees.3.age'])
+            ->assertJsonMissingValidationErrors(['attendees.0.age']);
+    }
+
+    public function test_children_cannot_come_without_an_adult(): void
+    {
+        $this->postJson('/api/v1/rsvps', $this->payload(['attendees' => [
+            ['name' => 'Enzo Silva', 'type' => 'child', 'age' => 5],
+        ]]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('attendees');
+    }
+
+    public function test_a_declined_rsvp_needs_no_attendees(): void
+    {
+        $this->postJson('/api/v1/rsvps', $this->payload(['status' => 'declined', 'attendees' => null]))
+            ->assertCreated()
+            ->assertJsonPath('data.adultsCount', 0)
+            ->assertJsonPath('data.attendees', []);
+    }
+
+    public function test_the_admin_can_add_a_guest_with_counts_only(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/v1/rsvps', $this->payload(['attendees' => null, 'adultsCount' => 2, 'kidsCount' => 3]))
+            ->assertCreated()
+            ->assertJsonPath('data.kidsCount', 3)
+            ->assertJsonPath('data.attendees', []);
     }
 
     public function test_guests_must_leave_a_phone(): void

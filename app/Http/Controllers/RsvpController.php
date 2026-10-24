@@ -8,6 +8,7 @@ use App\Models\Rsvp;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 
 class RsvpController extends Controller
 {
@@ -16,7 +17,7 @@ class RsvpController extends Controller
      */
     public function index(): AnonymousResourceCollection
     {
-        return RsvpResource::collection(Rsvp::query()->latest()->get());
+        return RsvpResource::collection(Rsvp::query()->with('attendees')->latest()->get());
     }
 
     /**
@@ -24,9 +25,14 @@ class RsvpController extends Controller
      */
     public function store(StoreRsvpRequest $request): JsonResponse
     {
-        $rsvp = Rsvp::create($request->toModelAttributes());
+        $rsvp = DB::transaction(function () use ($request) {
+            $rsvp = Rsvp::create($request->toModelAttributes());
+            $rsvp->attendees()->createMany($request->attendees());
 
-        return (new RsvpResource($rsvp))->response()->setStatusCode(201);
+            return $rsvp;
+        });
+
+        return (new RsvpResource($rsvp->load('attendees')))->response()->setStatusCode(201);
     }
 
     /**
