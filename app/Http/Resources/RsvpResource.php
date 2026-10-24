@@ -23,7 +23,7 @@ class RsvpResource extends JsonResource
         return [
             'id' => $this->id,
             'guestName' => $this->guest_name,
-            'phone' => $this->phone,
+            'phone' => (string) $this->phone,
             'status' => $this->status,
             'adultsCount' => $this->adults_count,
             'kidsCount' => $this->kids_count,

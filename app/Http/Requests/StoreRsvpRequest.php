@@ -17,7 +17,15 @@ class StoreRsvpRequest extends FormRequest
     {
         return [
             'guestName' => ['required', 'string', 'max:150'],
-            'phone' => ['required', 'string', 'min:8', 'max:30', 'regex:/^[\d\s()+\-]+$/'],
+            // Guests must leave a phone; parents adding someone by hand may skip it.
+            'phone' => [
+                Rule::requiredIf(fn () => $this->user('sanctum') === null),
+                'nullable',
+                'string',
+                'min:8',
+                'max:30',
+                'regex:/^[\d\s()+\-]+$/',
+            ],
             'status' => ['required', Rule::enum(RsvpStatus::class)],
             'adultsCount' => ['required', 'integer', 'min:0', 'max:20'],
             'kidsCount' => ['required', 'integer', 'min:0', 'max:20'],

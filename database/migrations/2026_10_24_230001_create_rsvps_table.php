@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('rsvps', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->string('guest_name');
-            $table->string('phone', 30);
+            $table->string('phone', 30)->nullable();
             $table->string('status', 20)->index();
             $table->unsignedTinyInteger('adults_count')->default(0);
             $table->unsignedTinyInteger('kids_count')->default(0);
